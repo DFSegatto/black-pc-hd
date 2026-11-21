@@ -1,0 +1,32 @@
+name: build
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  build:
+    runs-on: windows-2022
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure
+        working-directory: loader
+        run: cmake --preset win32-vs2022
+      - name: Build
+        working-directory: loader
+        run: cmake --build build/win32-vs2022 --config RelWithDebInfo
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Copy-Item loader/build/win32-vs2022/RelWithDebInfo/black.exe out/
+          Copy-Item loader/build/win32-vs2022/RelWithDebInfo/blackrt.dll out/
+          Compress-Archive -Path out/* -DestinationPath black-pc-hd.zip -Force
+      - name: Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: pwsh
+        run: |
+          $tag = "build-${{ github.run_number }}"
+          gh release create $tag black-pc-hd.zip --title $tag --notes "Build automatico (texturas HD + anisotropico)" --repo ${{ github.repository }}
